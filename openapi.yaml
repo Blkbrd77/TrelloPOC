@@ -1,0 +1,62 @@
+openapi: 3.0.0
+# Added by API Auto Mocking Plugin
+servers:
+  $ref: './common/servers.yaml'
+info:
+  $ref: './common/info.yaml'
+tags:
+  $ref: './common/tags.yaml'
+security:
+  - ApiKeyAuth: []
+paths:
+  /board:
+    $ref: './paths/board.yaml#/available-boards'
+  /board/{board}:
+    $ref: './paths/board.yaml#/board-details'
+  /board/{board}/list:
+    $ref: './paths/board.yaml#/lists-on-board'
+  /board/{board}/card:
+    $ref: './paths/board.yaml#/cards-on-board'
+  /board/{board}/member:
+    $ref: './paths/board.yaml#/board-members'
+  /board/{board}/label:
+    $ref: './paths/board.yaml#/board-labels'
+  /board/{board}/attribute:
+    $ref: './paths/board.yaml#/board-attributes'
+  /list/{list}/card:
+    $ref: './paths/list.yaml#/cards-on-list'
+  /card:
+    $ref: './paths/card.yaml#/list'
+  /card/{card}:
+    $ref: './paths/card.yaml#/details'
+  /card/{card}/label:
+    $ref: './paths/card.yaml#/label-add'
+  /card/{card}/label/{label}:
+    $ref: './paths/card.yaml#/label-delete'
+  /card/{card}/member:
+    $ref: './paths/card.yaml#/member-add'
+  /card/{card}/member/{member}:
+    $ref: './paths/card.yaml#/member-delete'
+  /card/{card}/comment:
+    $ref: './paths/card.yaml#/comment'
+  /card/{card}/checklist:
+    $ref: './paths/card.yaml#/checklist'
+  /checklist/{checklist}:
+    $ref: './paths/checklist.yaml#/update'
+  /checklist/{checklist}/item:
+    $ref: './paths/checklist.yaml#/item'
+  /checklist/{checklist}/item/{item}:
+    $ref: './paths/checklist.yaml#/item-details'
+  /webhook/{board}:
+    $ref: './paths/webhook.yaml#/webhook-create'
+  /webhook/{board}/example:
+    $ref: './paths/webhook.yaml#/webhook-example'
+  /webhook/{board}/{webhook}:
+    $ref: './paths/webhook.yaml#/webhook-delete'
+  /me/notifications:
+    $ref: './paths/me.yaml#/notifications'
+components:
+  securitySchemes:
+    $ref: './components/schemas/security.yaml'
+
+
