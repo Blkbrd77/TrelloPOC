@@ -1,0 +1,160 @@
+{
+    "statusCode": 200,
+    "headers": {
+        "Date": "Thu, 19 Feb 2026 23:42:17 GMT",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
+        "Access-Control-Allow-Methods": "PUT, GET, POST, DELETE, OPTIONS",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-cache, private",
+        "Transfer-Encoding": "chunked",
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+        "x-ms-islandgateway": "_prdil104eusgb0_3",
+        "x-ms-igw-tracking-id": "03efde13-42cd-4f4d-be36-f145ab987d9720260219234216_prdil104eusgb0_3",
+        "mise-correlation-id": "b33feedf-ee87-4b02-8d3c-2637685c694f",
+        "X-Frame-Options": "DENY",
+        "X-Content-Type-Options": "nosniff",
+        "cf-cache-status": "DYNAMIC",
+        "cf-ray": "9d099eab288fb560-IAD",
+        "Server-Timing": "x-ms-igw-upstream-headers;dur=203.1,x-ms-igw-req-overhead;dur=0.6",
+        "x-ms-service-request-id": "03efde13-42cd-4f4d-be36-f145ab987d97",
+        "x-ms-correlation-id": "89669a6d-7dd0-4dcd-a549-2f469549d1be",
+        "x-ms-activity-vector": "00.00.IN.17.IN.0C.00",
+        "Content-Type": "application/json; charset=UTF-8",
+        "Content-Length": "5692"
+    },
+    "body": [
+        {
+            "list": {
+                "id": 57175081,
+                "title": "Done",
+                "slug": "done"
+            },
+            "board": {
+                "id": 924088,
+                "title": "COED Database"
+            },
+            "effort": [],
+            "startDates": {
+                "actual": "2026-02-19T22:18:50+01:00"
+            },
+            "endDates": {
+                "actual": "2026-02-19T22:18:50+01:00"
+            },
+            "storyPoints": [],
+            "budget": [],
+            "id": 57175082,
+            "title": "USER STORY: VFI Deliverables",
+            "status": "COMPLETED",
+            "progress": 1,
+            "description": "As a customer, when I receive the final VFI, I want it to match the previously submitted PDF format so that I can maintain consistency in documentation and compliance.\n\n### Acceptance Criteria\n\n- Final VFI includes a Word document with embedded .mdb file.\n- The document is converted to PDF with no formatting or content loss.\n- All expected sections and data are present and accurate.\n\n### Definition of Done\n\n- PDF matches historical format and passes internal QA.\n\nPrevious submission files: [COED Word and Access Files](https://hosemccann1.sharepoint.com/:f:/r/sites/HMCJOBS/Shared%20Documents/FRC-ITAR/68+/Engineering/COED%20Word%20and%20Access%20Files?csf=1&web=1&e=HRdTpP \"‌\")",
+            "externalFields": [],
+            "order": 140737488322560,
+            "archived": false,
+            "attributes": [],
+            "hasComments": false,
+            "hasChecklists": false,
+            "url": "https://placker.com/app#/board?e=b&s=p68393&c=p3686c2a"
+        },
+        {
+            "list": {
+                "id": 57175081,
+                "title": "Done",
+                "slug": "done"
+            },
+            "board": {
+                "id": 924088,
+                "title": "COED Database"
+            },
+            "effort": [],
+            "startDates": {
+                "actual": "2026-02-19T23:08:06+01:00"
+            },
+            "endDates": {
+                "actual": "2026-02-19T23:08:06+01:00"
+            },
+            "storyPoints": [],
+            "budget": [],
+            "id": 57175084,
+            "title": "SPIKE: Abstract Form to keep Bolinger COEDs unchanged.",
+            "status": "COMPLETED",
+            "progress": 1,
+            "description": "## 🛠 Suggested Starting Architecture\n\nHere’s a lightweight, scalable approach based on your constraints:\n\n### 🔹 Central Access Front-End\n\n- One `.accdb` file with:\n  - A dashboard form\n  - Combo box to select which `.mdb` file to work with\n  - Linked tables refreshed dynamically based on selection\n\n### 🔹 Dynamic Linking\n\n- Use VBA to link to tables in the selected `.mdb` file\n- Allow CRUD operations through shared forms\n\n### 🔹 Logging\n\n- Central logging table in the front-end\n- Logs changes across all connected `.mdb` files\n\n### 🔹 Optional Enhancements\n\n- Store paths to `.mdb` files in a config table\n- Add a sync utility for SharePoint vs local versions\n- Add user login or tracking",
+            "externalFields": [],
+            "order": 140737488306176,
+            "archived": false,
+            "attributes": [],
+            "hasComments": false,
+            "hasChecklists": false,
+            "url": "https://placker.com/app#/board?e=b&s=p68393&c=p3686c2c"
+        },
+        {
+            "list": {
+                "id": 57175081,
+                "title": "Done",
+                "slug": "done"
+            },
+            "board": {
+                "id": 924088,
+                "title": "COED Database"
+            },
+            "effort": [],
+            "startDates": {
+                "actual": "2026-02-19T21:13:43+01:00"
+            },
+            "endDates": {
+                "actual": "2026-02-19T22:17:38+01:00"
+            },
+            "storyPoints": [],
+            "budget": [],
+            "id": 57175086,
+            "title": "USER STORY: Editable Cable Form for Engineers (CoPilot Estimate 14 Hours)",
+            "status": "COMPLETED",
+            "progress": 1,
+            "description": "As an engineer, when I need to update a cable, I want to use an editable form instead of working directly with CABLE1 and CABLE2 tables so that I can make updates more efficiently and with fewer errors.\n\n### Acceptance Criteria\n\n- Engineer can select a cable by CBL_NUM.\n- Editable fields include: CBL\\_TYPE, CBL\\_LG, REV, UNIT\\_A/B, CONN\\_A/B, COLOR, TERM_A/B, FUNCT, etc.\n- Changes are saved back to the appropriate tables (CABLE1, CABLE2).\n- Validation prevents incomplete or invalid entries.\n\n### Definition of Done\n\n- Form is functional and tested with real data.\n- Engineer confirms usability and accuracy.\n- Data integrity is maintained (no orphaned or mismatched records).\n\n![image.png](https://trello.com/1/cards/688bbdc04757af25cbd3f281/attachments/688d0c328e969de82df51f45/download/image.png)",
+            "externalFields": [],
+            "order": 140737488338944,
+            "archived": false,
+            "attributes": [],
+            "hasComments": true,
+            "hasChecklists": true,
+            "url": "https://placker.com/app#/board?e=b&s=p68393&c=p3686c2e"
+        },
+        {
+            "list": {
+                "id": 57175081,
+                "title": "Done",
+                "slug": "done"
+            },
+            "board": {
+                "id": 924088,
+                "title": "COED Database"
+            },
+            "effort": {
+                "planned": 1440
+            },
+            "startDates": {
+                "planned": "2025-07-31T14:00:00+02:00",
+                "actual": "2025-08-04T23:30:00+02:00"
+            },
+            "endDates": {
+                "planned": "2025-08-04T23:30:00+02:00",
+                "actual": "2026-02-19T21:13:51+01:00"
+            },
+            "storyPoints": [],
+            "budget": [],
+            "id": 57175087,
+            "title": "SPIKE: Deep Dive FRC and OPC COED databases.",
+            "status": "COMPLETED",
+            "progress": 1,
+            "description": "**OUTCOME:** As a database designer, I want to understand the current database schema, reports, entry methods, and source data so that I can make informed decisions about improvements and integrations.\n\nQuestions:\n\n1. Where does the Group Information come from?\n   1. Cable Number (1-10-1)-1EL-R(1-8-2)\n   2. Group CJ1-SH1-X\n2. On Drawing 154B-WPC-410-304, SHEET-3, ZONE 22-C there is a reference for A26, I can’t find the reference anywhere else in the drawing?\n3. How often are cable types wired differently?\n   1. K10053893-515 (CAT6 LSZH)\n   2. K10053893-523 (CAT6 LSZH)\n   3. SWE\n   4. LSC5OSW\n\n**ACCEPTANCE CRITERIA:**\n\n- Schema diagrams for CABLE1 and CABLE2 are documented.\n- Entry methods (forms, imports, manual edits) are identified.\n- Source data origins (manual, vendor, system-generated) are listed.\n- Reports and queries are cataloged with purpose and usage.\n\n**Definition of Done**\n\n- A shared document or wiki page contains the above.\n- Reviewed and validated by at least one engineer or stakeholder.",
+            "externalFields": [],
+            "order": 140737488355328,
+            "archived": false,
+            "attributes": [],
+            "hasComments": true,
+            "hasChecklists": true,
+            "url": "https://placker.com/app#/board?e=b&s=p68393&c=p3686c2f"
+        }
+    ]
+}
