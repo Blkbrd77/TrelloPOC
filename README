@@ -1,0 +1,10 @@
+Objective:
+Validate that a Power Automate flow can detect when a Trello card moves into a designated completion list, retrieve enriched card data from the Placker API (comments, checklist completion, close date), and write a structured record to a corresponding customer folder in SharePoint — with no manual intervention.
+Scope:
+Single Trello board, single target list (e.g. 'Done'). One SharePoint document library with pre-existing customer folders. No new infrastructure provisioned.
+FIRST TASK:
+Walk me through getting Placker API up and running in POSTMAN for Web to determine:
+1. API works
+2. Level of detail that can be returned and if it meets requirements
+Review Docs:
+https://placker.com/docs/api/index.html
