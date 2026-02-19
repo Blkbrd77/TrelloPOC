@@ -1,0 +1,179 @@
+POC DESIGN DOCUMENT
+Trello Card Completion ? SharePoint Automation
+Version: 0.1 (POC)     |     Status: Draft     |     Date: February 2026
+
+1. Objective
+Validate that a Power Automate flow can detect when a Trello card moves into a designated completion list, retrieve enriched card data from the Placker API (comments, checklist completion, close date), and write a structured record to a corresponding customer folder in SharePoint — with no manual intervention.
+
+SCOPE
+Single Trello board, single target list (e.g. 'Done'). One SharePoint document library with pre-existing customer folders. No new infrastructure provisioned.
+
+
+2. Tools & Prerequisites
+All tools below should be available before starting. Confirm access to each before building the flow.
+
+Tool / Resource
+What You Need
+Power Automate
+Access to premium connectors — confirm your M365 license includes the HTTP connector (requires Power Automate Premium or per-flow plan)
+Trello
+Admin access to the target board. Note your Board ID from the board URL.
+Placker
+API key — generate from your Placker profile page under API settings
+SharePoint
+Write access to the target document library. Confirm folder naming convention matches how you plan to route files
+Postman (optional)
+Recommended to test Placker API calls before building the flow — saves debugging time inside Power Automate
+
+LICENSE CHECK
+Power Automate's HTTP action (used to call the Placker API) requires a Premium license. Check Settings > View My Licenses in Power Automate before building.
+
+
+3. Architecture Overview
+The flow is entirely event-driven. It fires when Trello reports a card movement, enriches the data via a single Placker API call, composes the output, and writes to SharePoint. There is no scheduled polling and no intermediate file storage.
+
+TRIGGER
+?
+ENRICH
+?
+COMPOSE
+?
+LOAD
+
+Trello connector detects card moved to target list
+
+HTTP call to Placker API — get card comments, checklists, dates
+
+Build CSV row using Compose actions and string formatting
+
+SharePoint connector writes file to customer folder
+
+
+
+4. POC Build Steps
+Follow these steps in order. Each step has a validation check before moving on — this is your TDD mindset applied to flow building.
+
+Step 1 — Verify Placker API Before Touching Power Automate
+Do this first. It will save you significant debugging time later. Use Postman or your browser to test the Placker API directly and confirm the response contains the fields you need.
+
+Action
+Detail
+Get your Placker API key
+Profile page ? API settings ? Generate key
+Find your card ID
+Open a completed card in Placker, copy the ID from the URL
+Test GET card endpoint
+GET https://placker.com/api/v1/cards/{cardId} with header: Authorization: Bearer {your-api-key}
+Confirm fields present
+Look for: card name, description, checklist items + checked status, comments array, date last modified
+
+MENTOR NOTE
+This habit of testing your API independently before wiring it into automation is called 'contract testing'. You're verifying the API delivers what you expect before building anything on top of it. Senior devs do this instinctively.
+
+Step 2 — Create the Power Automate Flow
+
+#
+Step
+Details
+1
+New Instant or Automated Flow
+Go to make.powerautomate.com ? Create ? Automated cloud flow
+2
+Set Trigger
+Search for Trello connector ? Select 'When a card is moved to a list' ? Connect your Trello account ? Select your Board and target List (e.g. Done)
+3
+Add HTTP Action
+Add action ? HTTP ? Method: GET ? URI: https://placker.com/api/v1/cards/{cardId} ? Headers: Authorization = Bearer {your-api-key} ? Use dynamic content to insert the Card ID from the trigger
+4
+Parse JSON
+Add 'Parse JSON' action ? Content = HTTP body ? Generate schema from a sample response you captured in Step 1
+5
+Compose Output
+Add Compose action ? Build your CSV row using dynamic fields from parsed JSON: card name, close date, comment count, checklist summary
+6
+Create SharePoint File
+Add SharePoint action 'Create file' ? Site: your SharePoint site ? Folder path: /CustomerFiles/{customer name} ? File name: {card name}_history.csv ? File content: Compose output
+
+Step 3 — Define Your Output File Structure
+Decide what your CSV record should contain before building the Compose step. Keep it simple for the POC — you can always add columns later.
+
+Column
+Source in Placker API Response
+Card Name
+card.name
+Date Closed
+card.dateLastActivity or card.closed date
+Description
+card.desc
+Comments (count)
+Length of card.actions array filtered to commentCard type
+Last Comment
+First item in comments array ? text field
+Checklist Items Total
+Sum of all checklist items across card.checklists
+Checklist Items Complete
+Sum of checked items only
+Board Name
+card.board.name (for context)
+
+POC SIMPLIFICATION
+For the POC, write one row per card to a new file. Don't worry about appending to an existing log yet — that adds complexity around file locking. Get the single-card write working first.
+
+
+5. POC Validation Checklist
+Before calling the POC a success, verify each item below. These are your acceptance criteria.
+
+Check
+Expected Result
+Placker API returns card data
+Raw JSON response visible in Postman with all required fields populated
+Flow triggers on card move
+Moving a test card into the target list starts the flow — visible in flow run history
+HTTP call succeeds inside flow
+Run history shows HTTP action with status 200 and a populated body
+Parse JSON produces usable fields
+Dynamic content picker in subsequent steps shows individual fields from the card
+CSV row is correctly formatted
+Compose output shows comma-separated values with no null fields or broken structure
+File appears in SharePoint
+File is visible in the correct customer folder with expected filename
+File is readable
+Open in Excel — columns and data are clean and correctly mapped
+
+
+6. Known Risks & Mitigations
+
+Risk
+Mitigation
+Power Automate license does not include HTTP connector
+Check license before building. If blocked, the fallback is to use the Trello native connector only and accept limited data — confirm what fields it returns natively.
+Placker API does not return full comment/checklist history
+Test in Step 1 before assuming. If data is missing, supplement with a direct Trello API call using the same card ID.
+SharePoint folder path does not match card data
+For POC, hardcode the customer folder path. Routing logic (matching card to customer folder dynamically) is a Phase 2 concern.
+CSV append vs. new file per card
+POC creates a new file per card. Appending to a shared log is deferred — it introduces file locking complexity not appropriate for day-one validation.
+Trello connector polling delay
+Power Automate's Trello connector polls on a schedule (not true real-time). Expect up to a 5-minute delay between card move and flow trigger. This is acceptable for POC.
+
+
+7. Out of Scope (Phase 2)
+These are valid future requirements but explicitly excluded from the POC to keep tomorrow's effort focused.
+
+• Dynamic customer folder routing based on card label, member, or custom field
+• Appending records to a shared history log rather than creating new files
+• Error handling and retry logic for failed API calls
+• Multi-board or multi-list monitoring
+• Email or Teams notification on file creation
+• Full comment thread capture (POC captures last comment and count only)
+
+
+8. POC Success Criteria
+
+DEFINITION OF DONE
+A card moved to the target Trello list results in a readable CSV file appearing in the correct SharePoint folder within 10 minutes, with no manual steps taken after the card move.
+
+If this criterion is met, the POC is successful and Phase 2 scoping can begin. If any step fails, the run history in Power Automate will show exactly which action failed and why — this is your debugging starting point.
+
+
+Document prepared for internal POC use only. Hose-McCann Communications — February 2026.
