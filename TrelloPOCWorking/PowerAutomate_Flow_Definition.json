@@ -229,7 +229,8 @@
           ]
         },
         "type": "Compose",
-        "inputs": "@concat('<html><body>','<h1>',first(body('Filter_array'))?['title'],'</h1>','<hr/>','<p><strong>Status:</strong> ',first(body('Filter_array'))?['status'],'</p>','<p><strong>Completed:</strong> ',first(body('Filter_array'))?['endDates']?['actual'],'</p>','<h2>Description</h2>','<p>',first(body('Filter_array'))?['description'],'</p>','<h2>Comments</h2>',join(body('Select_-_Format_Comments'),''),'<h2>Checklists</h2>',join(body('Select_-_Format_Checklists'),''),'</body></html>')"
+        "_comment_checklist_approach": "CHECKLISTS: Two options — use whichever matches your flow. Option A (Select only, no loops, POC): join(body('Select_-_Format_Checklists'),''). Option B (Apply to each loop, proper per-item formatting): variables('varChecklistsHTML'). Do NOT use both — the '' characters in the HTML output are caused by having the join() call present alongside the variable.",
+        "inputs": "@concat('<html><body>','<h1>',first(body('Filter_array'))?['title'],'</h1>','<hr/>','<p><strong>Status:</strong> ',first(body('Filter_array'))?['status'],'</p>','<p><strong>Completed:</strong> ',first(body('Filter_array'))?['endDates']?['actual'],'</p>','<h2>Description</h2>','<p>',first(body('Filter_array'))?['description'],'</p>','<h2>Comments</h2>',join(body('Select_-_Format_Comments'),''),'<h2>Checklists</h2>',variables('varChecklistsHTML'),'</body></html>')"
       },
       "Compose_-_Extract_SharePoint_URL": {
         "_comment": "ACTION 8 — Extracts the SharePoint URL from the Placker card description. The description contains a markdown link in the format [Link Text](URL \"‌\"). This expression grabs everything between ]( and the space before the closing title quote.",

@@ -20,6 +20,22 @@
       "problem": "Two problems: (a) same missing @ prefix as Bug 1. (b) references items('Apply_to_each_2') which does not exist — the inner loop action is named Apply_to_each_1, so the current item inside it is items('Apply_to_each_1'), not items('Apply_to_each_2').",
       "original":  "concat('<p>', if(equals(items('Apply_to_each_2')?['status'], 'complete'), '&#10003;', '&#9744;'), ' ', items('Apply_to_each_2')?['title'], '</p>')",
       "fixed":    "@concat('<p><input type=\"checkbox\"', if(equals(items('Apply_to_each_1')?['status'], 'complete'), ' checked', ''), ' disabled/> ', items('Apply_to_each_1')?['title'], '</p>')"
+    },
+    {
+      "bug": 4,
+      "location": "Append_to_string_variable_1 → inputs.value — status field value mismatch",
+      "problem": "The Placker API status value for checklist items is not confirmed to be 'complete'. Testing showed all items rendering as unchecked regardless of their actual state. The condition equals(item()?['status'], 'complete') never evaluates to true. Step 1: use the DIAGNOSTIC expression below to reveal the actual field name and value. Step 2: once confirmed, switch to the PRODUCTION expression.",
+      "diagnostic_expression": "@concat('<p>[status=', string(items('Apply_to_each_1')?['status']), '] ', items('Apply_to_each_1')?['title'], '</p>')",
+      "diagnostic_note": "Paste this temporarily into Append_to_string_variable_1. Run the flow, open Run History, read the HTML output. The [status=VALUE] prefix on each item shows the exact value the API returns — e.g. [status=complete], [status=true], [status=done]. Update the production expression accordingly.",
+      "production_expression": "@concat('<p>', if(or(equals(items('Apply_to_each_1')?['status'], 'complete'), equals(items('Apply_to_each_1')?['checked'], true), equals(items('Apply_to_each_1')?['state'], 'complete')), '&#10003; ', ''), items('Apply_to_each_1')?['title'], '</p>')",
+      "production_note": "Checks three common status patterns: status='complete', checked=true, state='complete'. If the diagnostic shows a different value, add equals(items('Apply_to_each_1')?['FIELDNAME'], 'VALUE') to the or() list."
+    },
+    {
+      "bug": 5,
+      "location": "Compose - Build HTML Content → inputs (Action 7)",
+      "problem": "join(body('Select_-_Format_Checklists'),'') is still in the Compose expression. Now that the Apply to each loop writes to varChecklistsHTML, the Select action is redundant. Its join() output is producing the '' characters visible before <h3> in the HTML. Replace join(body('Select_-_Format_Checklists'),'') with variables('varChecklistsHTML') in the Compose inputs.",
+      "original":  "join(body('Select_-_Format_Checklists'),'')",
+      "fixed":    "variables('varChecklistsHTML')"
     }
   ],
 
@@ -43,7 +59,9 @@
           "type": "AppendToStringVariable",
           "inputs": {
             "name": "varChecklistsHTML",
-            "value": "@concat('<p>', if(equals(items('Apply_to_each_1')?['status'], 'complete'), '&#10003; ', ''), items('Apply_to_each_1')?['title'], '</p>')"
+            "_diagnostic": "Temporarily replace 'value' with the diagnostic expression to reveal the actual status field value, then switch to the production expression.",
+            "_diagnostic_expression": "@concat('<p>[status=', string(items('Apply_to_each_1')?['status']), '] ', items('Apply_to_each_1')?['title'], '</p>')",
+            "value": "@concat('<p>', if(or(equals(items('Apply_to_each_1')?['status'], 'complete'), equals(items('Apply_to_each_1')?['checked'], true), equals(items('Apply_to_each_1')?['state'], 'complete')), '&#10003; ', ''), items('Apply_to_each_1')?['title'], '</p>')"
           }
         }
       },
