@@ -1,0 +1,72 @@
+{
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "list": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "integer" },
+                    "title": { "type": "string" },
+                    "slug": { "type": "string" }
+                }
+            },
+            "board": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "integer" },
+                    "title": { "type": "string" }
+                }
+            },
+            "effort": {
+                "anyOf": [
+                    {
+                        "type": "array"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "planned": { "type": "integer" }
+                        }
+                    }
+                ]
+            },
+            "startDates": {
+                "type": "object",
+                "properties": {
+                    "actual": { "type": "string" },
+                    "planned": { "type": "string" }
+                }
+            },
+            "endDates": {
+                "type": "object",
+                "properties": {
+                    "actual": { "type": "string" },
+                    "planned": { "type": "string" }
+                }
+            },
+            "storyPoints": {
+                "type": "array"
+            },
+            "budget": {
+                "type": "array"
+            },
+            "id": { "type": "integer" },
+            "title": { "type": "string" },
+            "status": { "type": "string" },
+            "progress": { "type": "number" },
+            "description": { "type": "string" },
+            "externalFields": {
+                "type": "array"
+            },
+            "order": { "type": "integer" },
+            "archived": { "type": "boolean" },
+            "attributes": {
+                "type": "array"
+            },
+            "hasComments": { "type": "boolean" },
+            "hasChecklists": { "type": "boolean" },
+            "url": { "type": "string" }
+        }
+    }
+}
