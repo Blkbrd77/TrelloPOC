@@ -280,11 +280,33 @@ The `string(item()?['items'])` expression dumps raw JSON for the items. To get p
 2. **Apply to each** (outer) — input: `body('HTTP_-_Get_Checklists')`
    - **Append to string variable** `varChecklistsHTML` with: `concat('<h3>', items('Apply_to_each')?['title'], '</h3>')`
    - **Apply to each** (inner) — input: `items('Apply_to_each')?['items']`
-     - **Append to string variable** `varChecklistsHTML` with:
-       ```
-       concat('<p>', if(equals(items('Apply_to_each_1')?['status'], 'complete'), '&#10003; ', ''), items('Apply_to_each_1')?['title'], '</p>')
-       ```
+     - **Append to string variable** `varChecklistsHTML` with the expression below
 3. In Action 7, replace `join(body('Select_-_Format_Checklists'), '')` with `variables('varChecklistsHTML')`
+
+**Step 1 — Diagnostic (paste this first to reveal the actual status field value):**
+```
+concat('<p>[status=', string(items('Apply_to_each_1')?['status']), '] ', items('Apply_to_each_1')?['title'], '</p>')
+```
+Run the flow, open Run History, read the HTML. Each item will show `[status=VALUE]` — e.g. `[status=complete]`, `[status=true]`, `[status=done]`. Note the exact value.
+
+**Step 2 — Production expression (covers the most common Placker status patterns):**
+```
+concat(
+  '<p>',
+  if(
+    or(
+      equals(items('Apply_to_each_1')?['status'], 'complete'),
+      equals(items('Apply_to_each_1')?['checked'], true),
+      equals(items('Apply_to_each_1')?['state'], 'complete')
+    ),
+    '&#10003; ',
+    ''
+  ),
+  items('Apply_to_each_1')?['title'],
+  '</p>'
+)
+```
+If the diagnostic showed a value not covered above, add `equals(items('Apply_to_each_1')?['FIELD'], 'VALUE')` to the `or()` list.
 
 ---
 
@@ -297,6 +319,7 @@ The `string(item()?['items'])` expression dumps raw JSON for the items. To get p
 
 Paste the following into **Inputs** using the **Expression** tab:
 
+**Option A — Select only (POC, no loops):**
 ```
 concat(
   '<html><body>',
@@ -314,12 +337,30 @@ concat(
 )
 ```
 
+**Option B — Apply to each loop for checklists (use this once you have the loop working):**
+```
+concat(
+  '<html><body>',
+  '<h1>', first(body('Filter_array'))?['title'], '</h1>',
+  '<hr/>',
+  '<p><strong>Status:</strong> ', first(body('Filter_array'))?['status'], '</p>',
+  '<p><strong>Completed:</strong> ', first(body('Filter_array'))?['endDates']?['actual'], '</p>',
+  '<h2>Description</h2>',
+  '<p>', first(body('Filter_array'))?['description'], '</p>',
+  '<h2>Comments</h2>',
+  join(body('Select_-_Format_Comments'), ''),
+  '<h2>Checklists</h2>',
+  variables('varChecklistsHTML'),
+  '</body></html>'
+)
+```
+
+> **Important:** Use Option A **or** Option B — do not mix them. If `join(body('Select_-_Format_Checklists'),'')` and `variables('varChecklistsHTML')` are both present in the Compose, you will see `''` characters appearing before the checklist content in the HTML output.
+
 **Why `join(body('Select_-_Format_Comments'), '')`:**
 - `body('Select_-_Format_Comments')` is the array of strings output by Action 5b — e.g. `["<p>Jay...</p>", "<p>Jane...</p>"]`
 - `join(array, '')` concatenates them with no separator → `"<p>Jay...</p><p>Jane...</p>"`
 - The result slots directly into the HTML string
-
-> **If you switch to the variable approach for checklists:** replace `join(body('Select_-_Format_Checklists'), '')` with `variables('varChecklistsHTML')`.
 
 ---
 
@@ -440,6 +481,8 @@ Before going live, test each stage:
 | Filter Array returns 0 results | Title case mismatch between Trello and Placker | Check exact card name in both systems |
 | Select output is array of objects, not strings | Field name in Map expression is wrong or missing | Open Run History → GET Comments output → check actual field names → update Map in Action 5b or 6b |
 | `join()` in Action 7 returns empty string | Select output is empty — GET returned no results | Check that the card actually has comments / checklists (`hasComments`/`hasChecklists` flags in GET Cards output) |
+| `''` appears before checklist content in HTML | `join(body('Select_-_Format_Checklists'),'')` and `variables('varChecklistsHTML')` are both in the Compose | Use only one — remove the `join(body('Select_-_Format_Checklists'),'')` and replace with `variables('varChecklistsHTML')` (see Action 7 Option B) |
+| Checkmarks not appearing on complete items | `status` field value is not `'complete'` in the Placker API | Use the diagnostic expression in the loop (see Upgrading Checklist Formatting) to print the actual status value, then update the `or()` condition |
 | Convert file fails | OneDrive `/Temp` folder missing | Create the folder manually in OneDrive |
 | SharePoint Create file fails | Folder path has URL-encoded characters | Decode `%20` to spaces in the folder path |
 
