@@ -19,7 +19,7 @@
       "location": "Append_to_string_variable_1 → inputs.value (inner loop)",
       "problem": "Two problems: (a) same missing @ prefix as Bug 1. (b) references items('Apply_to_each_2') which does not exist — the inner loop action is named Apply_to_each_1, so the current item inside it is items('Apply_to_each_1'), not items('Apply_to_each_2').",
       "original":  "concat('<p>', if(equals(items('Apply_to_each_2')?['status'], 'complete'), '&#10003;', '&#9744;'), ' ', items('Apply_to_each_2')?['title'], '</p>')",
-      "fixed":    "@concat('<p>', if(equals(items('Apply_to_each_1')?['status'], 'complete'), '&#10003;', '&#9744;'), ' ', items('Apply_to_each_1')?['title'], '</p>')"
+      "fixed":    "@concat('<p><input type=\"checkbox\"', if(equals(items('Apply_to_each_1')?['status'], 'complete'), ' checked', ''), ' disabled/> ', items('Apply_to_each_1')?['title'], '</p>')"
     }
   ],
 
@@ -43,7 +43,7 @@
           "type": "AppendToStringVariable",
           "inputs": {
             "name": "varChecklistsHTML",
-            "value": "@concat('<p>', if(equals(items('Apply_to_each_1')?['status'], 'complete'), '&#10003;', '&#9744;'), ' ', items('Apply_to_each_1')?['title'], '</p>')"
+            "value": "@concat('<p><input type=\"checkbox\"', if(equals(items('Apply_to_each_1')?['status'], 'complete'), ' checked', ''), ' disabled/> ', items('Apply_to_each_1')?['title'], '</p>')"
           }
         }
       },
