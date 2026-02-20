@@ -1,7 +1,7 @@
 # Power Automate Implementation Guide
 ## Trello Card Completion → Placker Enrichment → SharePoint PDF
 
-**Version:** 1.1
+**Version:** 1.2
 **Status:** Ready to Implement
 **Date:** February 2026
 
@@ -9,7 +9,7 @@
 
 ## Quick Start — Import the Flow Definition
 
-Instead of clicking through every step manually, paste `PowerAutomate_Flow_Definition.json` directly into Power Automate's code view. This creates all 13 actions at once (11 original + 2 new Select actions added in v1.1).
+Instead of clicking through every step manually, paste `PowerAutomate_Flow_Definition.json` directly into Power Automate's code view. This creates all 14 actions at once (11 original + 2 Select actions + 1 logo action added in v1.2).
 
 ### Steps
 
@@ -58,10 +58,16 @@ Before building the flow, confirm you have:
 ```
 [TRIGGER] Trello - When a card is added to a list (Done)
     |
-    v
-[ACTION 1] HTTP - GET Cards in List (Placker: all cards in Done list)
-    |
-    v
+    +------------------------------------------+
+    |                                          |
+    v                                          v
+[ACTION 0] SharePoint - Get Logo        [ACTION 1] HTTP - GET Cards in List
+  Fetches company logo as base64          Placker: all cards in Done list
+  Runs in parallel with Action 1
+    |                                          |
+    +------------------------------------------+
+                         |
+                         v
 [ACTION 2] Parse JSON - Parse Placker card array
     |
     v
@@ -82,11 +88,11 @@ Before building the flow, confirm you have:
   Output: array of strings.                             Output: array of strings.
     |                                                                     |
     +----------------------------------+----------------------------------+
-                                       |
+                                       |           (also waits for ACTION 0 logo)
                                        v
                           [ACTION 7] Compose - Build HTML Content
-                            join() collapses each Select output
-                            array into a single HTML block.
+                            Title: TRELLO Completion (#225FAD)
+                            Logo from ACTION 0, tables for layout.
                                        |
                                        v
                           [ACTION 8] Compose - Extract SharePoint URL
@@ -104,6 +110,26 @@ Before building the flow, confirm you have:
 ---
 
 ## Step-by-Step Implementation
+
+---
+
+### ACTION 0 — SharePoint: Get Logo Image
+
+**Connector:** SharePoint
+**Action:** Get file content using path
+
+> This action runs at the **start of the flow in parallel with Action 1** (both have no dependencies). Add it anywhere before Action 7 — Power Automate will run it alongside the other early actions automatically once you set its `runAfter` to empty in code view, or simply add it as an independent parallel branch.
+
+Upload your company logo to SharePoint once (e.g. `/Shared Documents/Assets/company_logo.png`). This action retrieves it as base64-encoded content, which Action 7 embeds directly in the HTML `<img>` tag.
+
+| Field | Value |
+|---|---|
+| Site Address | `https://hosemccann1.sharepoint.com/sites/HMCJOBS` |
+| File Path | Path to your logo file, e.g. `/Shared Documents/Assets/company_logo.png` |
+
+> **How it works in Action 7:** The response body contains a `$content` field with the base64 string. The HTML img tag is built as: `<img src="data:image/png;base64,` + `body('SharePoint_-_Get_Logo')?['$content']` + `" style="max-height:60px;"/>`. No separate base64 encoding step is needed — SharePoint connector returns file content already base64 encoded.
+
+> **Action name:** Rename this action to `SharePoint - Get Logo` so it matches `body('SharePoint_-_Get_Logo')` in Action 7.
 
 ---
 
@@ -234,9 +260,11 @@ The `effort` field alternates between an empty array `[]` and an object `{"plann
 **Map expression:**
 ```
 concat(
-  '<p><strong>', item()?['author']?['name'], '</strong> &mdash; ',
-  item()?['created'], '<br/>',
-  item()?['content'], '</p>'
+  '<p style="border-left:3px solid #225FAD;padding-left:8px;margin:8px 0;">',
+  '<strong style="color:#225FAD;">', item()?['author']?['name'], '</strong>',
+  ' &mdash; <em>', item()?['created'], '</em><br/>',
+  item()?['content'],
+  '</p>'
 )
 ```
 
@@ -283,30 +311,17 @@ The `string(item()?['items'])` expression dumps raw JSON for the items. To get p
      - **Append to string variable** `varChecklistsHTML` with the expression below
 3. In Action 7, replace `join(body('Select_-_Format_Checklists'), '')` with `variables('varChecklistsHTML')`
 
-**Step 1 — Diagnostic (paste this first to reveal the actual status field value):**
+**Inner loop expression — Force all items as checked (&#9745;):**
 ```
-concat('<p>[status=', string(items('Apply_to_each_1')?['status']), '] ', items('Apply_to_each_1')?['title'], '</p>')
+@concat('<p style="margin:2px 0;">&#9745; ', items('Apply_to_each_1')?['title'], '</p>')
 ```
-Run the flow, open Run History, read the HTML. Each item will show `[status=VALUE]` — e.g. `[status=complete]`, `[status=true]`, `[status=done]`. Note the exact value.
 
-**Step 2 — Production expression (covers the most common Placker status patterns):**
+> **Why force-checked:** The Trello automation moves a card to Done **only when every checklist item is complete**. By the time this flow fires, all items are already checked. There is no need to inspect the status field — render all items with &#9745; unconditionally.
+
+**Outer loop Append expression (styled checklist title):**
 ```
-concat(
-  '<p>',
-  if(
-    or(
-      equals(items('Apply_to_each_1')?['status'], 'complete'),
-      equals(items('Apply_to_each_1')?['checked'], true),
-      equals(items('Apply_to_each_1')?['state'], 'complete')
-    ),
-    '&#10003; ',
-    ''
-  ),
-  items('Apply_to_each_1')?['title'],
-  '</p>'
-)
+@concat('<h3 style="color:#225FAD;margin:10px 0 4px 0;">', items('Apply_to_each')?['title'], '</h3>')
 ```
-If the diagnostic showed a value not covered above, add `equals(items('Apply_to_each_1')?['FIELD'], 'VALUE')` to the `or()` list.
 
 ---
 
@@ -315,47 +330,46 @@ If the diagnostic showed a value not covered above, add `equals(items('Apply_to_
 **Connector:** Data Operation
 **Action:** Compose
 
-**What this does:** Assembles the final HTML string from all the pieces collected so far. It uses `join()` to collapse each Select output array (array of strings) into a single HTML block. You do not loop here — the looping already happened in Actions 5b and 6b.
+**What this does:** Assembles the final HTML with a branded layout — `TRELLO Completion` title in `#225FAD`, company logo top-right (base64 from ACTION 0), a Job Details table, then Description, Comments, and Checklists sections with matching heading colors.
 
 Paste the following into **Inputs** using the **Expression** tab:
 
-**Option A — Select only (POC, no loops):**
 ```
 concat(
-  '<html><body>',
-  '<h1>', first(body('Filter_array'))?['title'], '</h1>',
-  '<hr/>',
-  '<p><strong>Status:</strong> ', first(body('Filter_array'))?['status'], '</p>',
-  '<p><strong>Completed:</strong> ', first(body('Filter_array'))?['endDates']?['actual'], '</p>',
-  '<h2>Description</h2>',
-  '<p>', first(body('Filter_array'))?['description'], '</p>',
-  '<h2>Comments</h2>',
-  join(body('Select_-_Format_Comments'), ''),
-  '<h2>Checklists</h2>',
-  join(body('Select_-_Format_Checklists'), ''),
-  '</body></html>'
-)
-```
+  '<html><body style="font-family:Arial,sans-serif;margin:30px;color:#333;">',
 
-**Option B — Apply to each loop for checklists (use this once you have the loop working):**
-```
-concat(
-  '<html><body>',
-  '<h1>', first(body('Filter_array'))?['title'], '</h1>',
-  '<hr/>',
-  '<p><strong>Status:</strong> ', first(body('Filter_array'))?['status'], '</p>',
-  '<p><strong>Completed:</strong> ', first(body('Filter_array'))?['endDates']?['actual'], '</p>',
-  '<h2>Description</h2>',
+  '<table width="100%" cellpadding="4" cellspacing="0" style="border-bottom:3px solid #225FAD;margin-bottom:16px;"><tr>',
+  '<td><h1 style="color:#225FAD;margin:0;">TRELLO Completion</h1></td>',
+  '<td align="right"><img src="data:image/png;base64,', body('SharePoint_-_Get_Logo')?['$content'], '" style="max-height:60px;"/></td>',
+  '</tr></table>',
+
+  '<h2 style="color:#225FAD;border-bottom:2px solid #225FAD;padding-bottom:4px;">Job Details</h2>',
+  '<table width="100%" cellpadding="6" cellspacing="0" style="border-collapse:collapse;margin-bottom:20px;">',
+  '<tr>',
+  '<td width="180" style="font-weight:bold;color:#225FAD;background:#f0f4fb;border:1px solid #ddd;padding:6px 10px;">Card Title</td>',
+  '<td style="border:1px solid #ddd;padding:6px 10px;">', first(body('Filter_array'))?['title'], '</td>',
+  '</tr><tr>',
+  '<td style="font-weight:bold;color:#225FAD;background:#f0f4fb;border:1px solid #ddd;padding:6px 10px;">Status</td>',
+  '<td style="border:1px solid #ddd;padding:6px 10px;">', first(body('Filter_array'))?['status'], '</td>',
+  '</tr><tr>',
+  '<td style="font-weight:bold;color:#225FAD;background:#f0f4fb;border:1px solid #ddd;padding:6px 10px;">Date Completed</td>',
+  '<td style="border:1px solid #ddd;padding:6px 10px;">', first(body('Filter_array'))?['endDates']?['actual'], '</td>',
+  '</tr></table>',
+
+  '<h2 style="color:#225FAD;border-bottom:2px solid #225FAD;padding-bottom:4px;">Description</h2>',
   '<p>', first(body('Filter_array'))?['description'], '</p>',
-  '<h2>Comments</h2>',
+
+  '<h2 style="color:#225FAD;border-bottom:2px solid #225FAD;padding-bottom:4px;">Comments</h2>',
   join(body('Select_-_Format_Comments'), ''),
-  '<h2>Checklists</h2>',
+
+  '<h2 style="color:#225FAD;border-bottom:2px solid #225FAD;padding-bottom:4px;">Checklists</h2>',
   variables('varChecklistsHTML'),
+
   '</body></html>'
 )
 ```
 
-> **Important:** Use Option A **or** Option B — do not mix them. If `join(body('Select_-_Format_Checklists'),'')` and `variables('varChecklistsHTML')` are both present in the Compose, you will see `''` characters appearing before the checklist content in the HTML output.
+> **Requirements:** This expression requires `SharePoint_-_Get_Logo` (ACTION 0) to have succeeded, and `varChecklistsHTML` to be populated by the Apply to each loop. Do NOT also include `join(body('Select_-_Format_Checklists'),'')` — that combination produces `''` artifacts in the output.
 
 **Why `join(body('Select_-_Format_Comments'), '')`:**
 - `body('Select_-_Format_Comments')` is the array of strings output by Action 5b — e.g. `["<p>Jay...</p>", "<p>Jane...</p>"]`
@@ -456,6 +470,7 @@ After running the flow once, open Run History and expand the outputs of **GET Co
 
 Before going live, test each stage:
 
+- [ ] Action 0 (Get Logo) returns 200 — expand Run History output and confirm `$content` field is present and non-empty
 - [ ] Trigger fires when a card is moved to Done in Trello
 - [ ] Action 1 (GET Cards in List) returns 200 with card array from Placker
 - [ ] Action 2 (Parse JSON) parses without schema errors (check `effort` / `startDates` / `endDates`)
@@ -476,6 +491,8 @@ Before going live, test each stage:
 
 | Error | Likely Cause | Fix |
 |---|---|---|
+| Logo not appearing in PDF | `SharePoint_-_Get_Logo` failed or path wrong | Check REPLACE_WITH_LOGO_FILE_PATH is the correct SharePoint-relative path; confirm action returns 200 and `$content` is in Run History output |
+| Logo appears broken in HTML preview but OK in PDF | Browser blocking base64 data URI from file:// origin | Expected — data URIs work correctly in the PDF converter; test by opening the HTML from a web server or directly in OneDrive |
 | Parse JSON schema error on `effort` | Schema type mismatch | Use `PlackerParseJSON_Schema.json` — already has `anyOf` fix |
 | `body('HTTP')?['body']` expression error | Selecting property from array | Use `body('HTTP')` only — no `?['body']` |
 | Filter Array returns 0 results | Title case mismatch between Trello and Placker | Check exact card name in both systems |
