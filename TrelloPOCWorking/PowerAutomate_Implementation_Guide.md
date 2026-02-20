@@ -279,10 +279,10 @@ The `string(item()?['items'])` expression dumps raw JSON for the items. To get p
 1. **Initialize variable** — name: `varChecklistsHTML`, type: String, value: `''`
 2. **Apply to each** (outer) — input: `body('HTTP_-_Get_Checklists')`
    - **Append to string variable** `varChecklistsHTML` with: `concat('<h3>', items('Apply_to_each')?['title'], '</h3>')`
-   - **Apply to each** (inner) — input: `items('Apply_to_each_1')?['items']`
+   - **Apply to each** (inner) — input: `items('Apply_to_each')?['items']`
      - **Append to string variable** `varChecklistsHTML` with:
        ```
-       concat('<p>', if(equals(items('Apply_to_each_2')?['status'], 'complete'), '&#10003;', '&#9744;'), ' ', items('Apply_to_each_2')?['title'], '</p>')
+       concat('<p><input type="checkbox"', if(equals(items('Apply_to_each_1')?['status'], 'complete'), ' checked', ''), ' disabled/> ', items('Apply_to_each_1')?['title'], '</p>')
        ```
 3. In Action 7, replace `join(body('Select_-_Format_Checklists'), '')` with `variables('varChecklistsHTML')`
 
