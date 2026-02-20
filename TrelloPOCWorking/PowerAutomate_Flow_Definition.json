@@ -192,18 +192,44 @@
           }
         }
       },
-      "Compose_-_Build_HTML_Content": {
-        "_comment": "ACTION 7 — Assembles HTML for the PDF. Comments and checklists are currently stringified (string()). After the first test run, replace string(body('HTTP_-_Get_Comments')) and string(body('HTTP_-_Get_Checklists')) with properly formatted loops or field references once you see the actual response shapes.",
+      "Select_-_Format_Comments": {
+        "_comment": "ACTION 5b — Data Operations: Select. Maps each comment object from GET Comments into a formatted HTML string. Select iterates over the input array (from) and applies the expression in 'select' to each element using item(). The output is an array of strings — one per comment. join() in Action 7 then collapses that array into a single HTML block. Field names (author.name, created, content) are best guesses from the design doc — verify against Run History after first test run and update here if different.",
         "runAfter": {
           "HTTP_-_Get_Comments": [
             "Succeeded"
-          ],
+          ]
+        },
+        "type": "Select",
+        "inputs": {
+          "from": "@body('HTTP_-_Get_Comments')",
+          "select": "@concat('<p><strong>', item()?['author']?['name'], '</strong> &mdash; ', item()?['created'], '<br/>', item()?['content'], '</p>')"
+        }
+      },
+      "Select_-_Format_Checklists": {
+        "_comment": "ACTION 6b — Data Operations: Select. Maps each checklist object from GET Checklists into an HTML block. Handles the outer level (checklist title) cleanly. The inner items array is serialized with string() as a POC fallback because a single Select cannot loop two levels deep. To get per-item checkboxes, replace this action with the Variable + Apply to each approach (Option B) in PowerAutomate_Implementation_Guide.md.",
+        "runAfter": {
           "HTTP_-_Get_Checklists": [
             "Succeeded"
           ]
         },
+        "type": "Select",
+        "inputs": {
+          "from": "@body('HTTP_-_Get_Checklists')",
+          "select": "@concat('<h3>', item()?['title'], '</h3><p>', string(item()?['items']), '</p>')"
+        }
+      },
+      "Compose_-_Build_HTML_Content": {
+        "_comment": "ACTION 7 — Assembles the final HTML string. join(array, '') collapses the string arrays produced by the two Select actions into single HTML blocks with no separator between items. To change comment or checklist formatting, edit the 'select' expression in Select_-_Format_Comments or Select_-_Format_Checklists — do not change this Compose.",
+        "runAfter": {
+          "Select_-_Format_Comments": [
+            "Succeeded"
+          ],
+          "Select_-_Format_Checklists": [
+            "Succeeded"
+          ]
+        },
         "type": "Compose",
-        "inputs": "@concat('<html><body>','<h1>',first(body('Filter_array'))?['title'],'</h1>','<hr/>','<p><strong>Status:</strong> ',first(body('Filter_array'))?['status'],'</p>','<p><strong>Completed:</strong> ',first(body('Filter_array'))?['endDates']?['actual'],'</p>','<h2>Description</h2>','<p>',first(body('Filter_array'))?['description'],'</p>','<h2>Comments</h2>','<p>',string(body('HTTP_-_Get_Comments')),'</p>','<h2>Checklists</h2>','<p>',string(body('HTTP_-_Get_Checklists')),'</p>','</body></html>')"
+        "inputs": "@concat('<html><body>','<h1>',first(body('Filter_array'))?['title'],'</h1>','<hr/>','<p><strong>Status:</strong> ',first(body('Filter_array'))?['status'],'</p>','<p><strong>Completed:</strong> ',first(body('Filter_array'))?['endDates']?['actual'],'</p>','<h2>Description</h2>','<p>',first(body('Filter_array'))?['description'],'</p>','<h2>Comments</h2>',join(body('Select_-_Format_Comments'),''),'<h2>Checklists</h2>',join(body('Select_-_Format_Checklists'),''),'</body></html>')"
       },
       "Compose_-_Extract_SharePoint_URL": {
         "_comment": "ACTION 8 — Extracts the SharePoint URL from the Placker card description. The description contains a markdown link in the format [Link Text](URL \"‌\"). This expression grabs everything between ]( and the space before the closing title quote.",
