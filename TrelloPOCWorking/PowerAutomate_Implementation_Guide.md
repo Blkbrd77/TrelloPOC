@@ -282,7 +282,7 @@ The `string(item()?['items'])` expression dumps raw JSON for the items. To get p
    - **Apply to each** (inner) — input: `items('Apply_to_each')?['items']`
      - **Append to string variable** `varChecklistsHTML` with:
        ```
-       concat('<p><input type="checkbox"', if(equals(items('Apply_to_each_1')?['status'], 'complete'), ' checked', ''), ' disabled/> ', items('Apply_to_each_1')?['title'], '</p>')
+       concat('<p>', if(equals(items('Apply_to_each_1')?['status'], 'complete'), '&#10003; ', ''), items('Apply_to_each_1')?['title'], '</p>')
        ```
 3. In Action 7, replace `join(body('Select_-_Format_Checklists'), '')` with `variables('varChecklistsHTML')`
 

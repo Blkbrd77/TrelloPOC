@@ -149,7 +149,7 @@ function buildHtml(card, comments, checklists) {
   const checklistsHtml = checklists.map((cl) => {
     const itemsHtml = (cl?.items ?? []).map((item) => {
       const done = item?.status === 'complete' || item?.checked === true || item?.state === 'complete';
-      return `<p><input type="checkbox"${done ? ' checked' : ''} disabled/> ${item?.title ?? item?.name ?? ''}</p>`;
+      return `<p>${done ? '&#10003; ' : ''}${item?.title ?? item?.name ?? ''}</p>`;
     }).join('');
     return `<h3>${cl?.title ?? cl?.name ?? ''}</h3>${itemsHtml}`;
   }).join('');

@@ -43,7 +43,7 @@
           "type": "AppendToStringVariable",
           "inputs": {
             "name": "varChecklistsHTML",
-            "value": "@concat('<p><input type=\"checkbox\"', if(equals(items('Apply_to_each_1')?['status'], 'complete'), ' checked', ''), ' disabled/> ', items('Apply_to_each_1')?['title'], '</p>')"
+            "value": "@concat('<p>', if(equals(items('Apply_to_each_1')?['status'], 'complete'), '&#10003; ', ''), items('Apply_to_each_1')?['title'], '</p>')"
           }
         }
       },
