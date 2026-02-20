@@ -1,0 +1,4 @@
+What happened:
+The flow tried to process some information but got stuck because it expected a list of items, but instead found just one item. This happened in the "Parse_JSON" step.
+
+How to fix it: 1.Switch to Edit mode in your flow. 2.Find the "Parse_JSON" action. 3.Check the "effort" field in the schema. It is set as a list (array), but sometimes only a single item is provided. 4.Update the schema for "effort" to accept both a single item and a list, or ensure the data always comes as a list. 5.Save and test your flow.
