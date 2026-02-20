@@ -1,0 +1,36 @@
+{
+  "type": "Foreach",
+  "foreach": "@body('Get_Checklist')",
+  "actions": {
+    "Append_to_string_variable": {
+      "type": "AppendToStringVariable",
+      "inputs": {
+        "name": "varChecklistsHTML",
+        "value": "concat('<h3>', items('Apply_to_each')?['title'], '</h3>')"
+      }
+    },
+    "Apply_to_each_1": {
+      "type": "Foreach",
+      "foreach": "@items('Apply_to_each')",
+      "actions": {
+        "Append_to_string_variable_1": {
+          "type": "AppendToStringVariable",
+          "inputs": {
+            "name": "varChecklistsHTML",
+            "value": "concat('<p>', if(equals(items('Apply_to_each_2')?['status'], 'complete'), '&#10003;', '&#9744;'), ' ', items('Apply_to_each_2')?['title'], '</p>')"
+          }
+        }
+      },
+      "runAfter": {
+        "Append_to_string_variable": [
+          "Succeeded"
+        ]
+      }
+    }
+  },
+  "runAfter": {
+    "Format_Checklists": [
+      "Succeeded"
+    ]
+  }
+}
