@@ -1,7 +1,7 @@
 # Power Automate Implementation Guide
 ## Trello Card Completion → Placker Enrichment → SharePoint PDF
 
-**Version:** 1.0
+**Version:** 1.1
 **Status:** Ready to Implement
 **Date:** February 2026
 
@@ -9,7 +9,7 @@
 
 ## Quick Start — Import the Flow Definition
 
-Instead of clicking through every step manually, paste `PowerAutomate_Flow_Definition.json` directly into Power Automate's code view. This creates all 11 actions at once.
+Instead of clicking through every step manually, paste `PowerAutomate_Flow_Definition.json` directly into Power Automate's code view. This creates all 13 actions at once (11 original + 2 new Select actions added in v1.1).
 
 ### Steps
 
@@ -59,7 +59,7 @@ Before building the flow, confirm you have:
 [TRIGGER] Trello - When a card is added to a list (Done)
     |
     v
-[ACTION 1] HTTP - Call Placker: Get all cards in Done list
+[ACTION 1] HTTP - GET Cards in List (Placker: all cards in Done list)
     |
     v
 [ACTION 2] Parse JSON - Parse Placker card array
@@ -70,25 +70,35 @@ Before building the flow, confirm you have:
     v
 [ACTION 4] Compose - Extract matched card's Placker ID
     |
-    v
-[ACTION 5] HTTP - Get Comments        [ACTION 6] HTTP - Get Checklists
-    |                                       |
-    +-------------------+-------------------+
-                        |
-                        v
-             [ACTION 7] Compose - Build HTML content
-                        |
-                        v
-             [ACTION 8] Compose - Extract SharePoint URL from description
-                        |
-                        v
-             [ACTION 9] OneDrive - Create temp HTML file
-                        |
-                        v
-             [ACTION 10] OneDrive - Convert HTML to PDF
-                        |
-                        v
-             [ACTION 11] SharePoint - Save PDF to customer folder
+    +----------------------------------+----------------------------------+
+    |                                                                     |
+    v                                                                     v
+[ACTION 5] HTTP - GET Comments                         [ACTION 6] HTTP - GET Checklists
+    |                                                                     |
+    v                                                                     v
+[ACTION 5b] Select - Format Comments                   [ACTION 6b] Select - Format Checklists
+  Converts each comment object                           Converts each checklist object
+  into one HTML <p> string.                              into one HTML <h3> block.
+  Output: array of strings.                             Output: array of strings.
+    |                                                                     |
+    +----------------------------------+----------------------------------+
+                                       |
+                                       v
+                          [ACTION 7] Compose - Build HTML Content
+                            join() collapses each Select output
+                            array into a single HTML block.
+                                       |
+                                       v
+                          [ACTION 8] Compose - Extract SharePoint URL
+                                       |
+                                       v
+                          [ACTION 9] OneDrive - Create temp HTML file
+                                       |
+                                       v
+                          [ACTION 10] OneDrive - Convert HTML to PDF
+                                       |
+                                       v
+                          [ACTION 11] SharePoint - Save PDF to customer folder
 ```
 
 ---
@@ -173,7 +183,7 @@ The `effort` field alternates between an empty array `[]` and an object `{"plann
 
 ---
 
-### ACTION 5 — HTTP: Get card comments
+### ACTION 5 — HTTP: GET Comments
 
 **Connector:** HTTP
 **Action:** HTTP
@@ -185,9 +195,11 @@ The `effort` field alternates between an empty array `[]` and an object `{"plann
 | Headers — Key | `X-API-Key` |
 | Headers — Value | Your Placker API key |
 
+**What this returns:** An array of comment objects. Each object has the comment text, the author (as a nested object with a name field), and a timestamp. Field names are confirmed after first test run — see Field Mapping section.
+
 ---
 
-### ACTION 6 — HTTP: Get card checklists
+### ACTION 6 — HTTP: GET Checklists
 
 **Connector:** HTTP
 **Action:** HTTP
@@ -201,12 +213,87 @@ The `effort` field alternates between an empty array `[]` and an object `{"plann
 | Headers — Key | `X-API-Key` |
 | Headers — Value | Your Placker API key |
 
+**What this returns:** An array of checklist objects. Each object has a `title` (the checklist name) and an `items` array. Each item in `items` has a `title` (the item text) and a `status` field (`complete` or `incomplete`). Field names are best guesses — confirm from Run History after first test.
+
 ---
 
-### ACTION 7 — Compose: Build HTML content for PDF
+### ACTION 5b — Select: Format Comments
+
+**Connector:** Data Operation
+**Action:** Select
+
+> Add this immediately after Action 5 (GET Comments) — before the parallel branches merge back together.
+
+**What Select does here:** It iterates over the array of comment objects returned by GET Comments and maps each one to a formatted HTML `<p>` string. The output is an array of strings — one string per comment — which Action 7 then collapses with `join()`.
+
+| Field | Value |
+|---|---|
+| From | Expression: `body('HTTP_-_Get_Comments')` |
+| Map | Switch to **Expression** tab and enter the expression below |
+
+**Map expression:**
+```
+concat(
+  '<p><strong>', item()?['author']?['name'], '</strong> &mdash; ',
+  item()?['created'], '<br/>',
+  item()?['content'], '</p>'
+)
+```
+
+> **Field names to verify:** `author.name`, `created`, and `content` are best guesses. After the first test run, open Run History → expand GET Comments output and check the actual field names. Update this expression if they differ (e.g. `content` might be `text`, `created` might be `createdAt`).
+
+**How to rename this action:** Click the `...` on the action → **Rename** → type `Select - Format Comments`. This name is what Action 7 references in `body('Select_-_Format_Comments')`.
+
+---
+
+### ACTION 6b — Select: Format Checklists
+
+**Connector:** Data Operation
+**Action:** Select
+
+> Add this immediately after Action 6 (GET Checklists), on the parallel branch.
+
+**What Select does here:** Iterates over the array of checklist objects and maps each to an HTML block containing the checklist title. The `items` array inside each checklist is serialized with `string()` as a POC fallback — this produces readable but unformatted output. See the **Upgrading Checklist Formatting** note below if you want per-item checkboxes.
+
+| Field | Value |
+|---|---|
+| From | Expression: `body('HTTP_-_Get_Checklists')` |
+| Map | Switch to **Expression** tab and enter the expression below |
+
+**Map expression:**
+```
+concat(
+  '<h3>', item()?['title'], '</h3>',
+  '<p>', string(item()?['items']), '</p>'
+)
+```
+
+> **Field names to verify:** `title` is the checklist name. `items` is the nested array of checklist items. Confirm both from Run History after first test run.
+
+**How to rename this action:** Click `...` → **Rename** → `Select - Format Checklists`.
+
+#### Upgrading Checklist Formatting (after field names confirmed)
+
+The `string(item()?['items'])` expression dumps raw JSON for the items. To get proper checkboxes once you know the real field names, replace the entire Select action with a **Variable + Apply to each** loop:
+
+1. **Initialize variable** — name: `varChecklistsHTML`, type: String, value: `''`
+2. **Apply to each** (outer) — input: `body('HTTP_-_Get_Checklists')`
+   - **Append to string variable** `varChecklistsHTML` with: `concat('<h3>', items('Apply_to_each')?['title'], '</h3>')`
+   - **Apply to each** (inner) — input: `items('Apply_to_each_1')?['items']`
+     - **Append to string variable** `varChecklistsHTML` with:
+       ```
+       concat('<p>', if(equals(items('Apply_to_each_2')?['status'], 'complete'), '&#10003;', '&#9744;'), ' ', items('Apply_to_each_2')?['title'], '</p>')
+       ```
+3. In Action 7, replace `join(body('Select_-_Format_Checklists'), '')` with `variables('varChecklistsHTML')`
+
+---
+
+### ACTION 7 — Compose: Build HTML Content
 
 **Connector:** Data Operation
 **Action:** Compose
+
+**What this does:** Assembles the final HTML string from all the pieces collected so far. It uses `join()` to collapse each Select output array (array of strings) into a single HTML block. You do not loop here — the looping already happened in Actions 5b and 6b.
 
 Paste the following into **Inputs** using the **Expression** tab:
 
@@ -220,14 +307,19 @@ concat(
   '<h2>Description</h2>',
   '<p>', first(body('Filter_array'))?['description'], '</p>',
   '<h2>Comments</h2>',
-  '<p>', string(body('HTTP_-_Get_Comments')), '</p>',
+  join(body('Select_-_Format_Comments'), ''),
   '<h2>Checklists</h2>',
-  '<p>', string(body('HTTP_-_Get_Checklists')), '</p>',
+  join(body('Select_-_Format_Checklists'), ''),
   '</body></html>'
 )
 ```
 
-> **Note:** Once you run a test and see the shape of the comments and checklists responses, update the field references here (e.g., replace `string(body('HTTP_-_Get_Comments'))` with formatted fields like `item()?['text']`). See the **Field Mapping** section below.
+**Why `join(body('Select_-_Format_Comments'), '')`:**
+- `body('Select_-_Format_Comments')` is the array of strings output by Action 5b — e.g. `["<p>Jay...</p>", "<p>Jane...</p>"]`
+- `join(array, '')` concatenates them with no separator → `"<p>Jay...</p><p>Jane...</p>"`
+- The result slots directly into the HTML string
+
+> **If you switch to the variable approach for checklists:** replace `join(body('Select_-_Format_Checklists'), '')` with `variables('varChecklistsHTML')`.
 
 ---
 
@@ -301,16 +393,21 @@ substring(
 
 ## Field Mapping (Update After First Test Run)
 
-After running the flow once, open the run history and inspect the outputs of Actions 5 and 6. Update the HTML template in Action 7 with the correct field names.
+After running the flow once, open Run History and expand the outputs of **GET Comments** (Action 5) and **GET Checklists** (Action 6) to see the real field names. Then update the expressions in the two **Select** actions — not in the Compose.
 
-| Required Field | Expected API Field | Endpoint | Status |
-|---|---|---|---|
-| Comment text | `???` | `/card/{id}/comment` | Confirm after first run |
-| Comment author | `???` | `/card/{id}/comment` | Confirm after first run |
-| Comment date | `???` | `/card/{id}/comment` | Confirm after first run |
-| Checklist name | `???` | `/card/{id}/checklist` | Confirm after first run |
-| Checklist item text | `???` | `/card/{id}/checklist` | Confirm after first run |
-| Checklist item state | `state` / `checked` / `complete` | `/card/{id}/checklist` | Confirm field name |
+**Where to make changes:**
+- Comment field names → edit the **Map** expression in **Action 5b (Select - Format Comments)**
+- Checklist field names → edit the **Map** expression in **Action 6b (Select - Format Checklists)**
+- The Compose (Action 7) does not need to change when field names are updated
+
+| Required Field | Expected API Field | Where to Update | Endpoint | Status |
+|---|---|---|---|---|
+| Comment text | `content` (may be `text`) | Action 5b Map: `item()?['content']` | `/card/{id}/comment` | Confirm after first run |
+| Comment author | `author.name` | Action 5b Map: `item()?['author']?['name']` | `/card/{id}/comment` | Confirm after first run |
+| Comment date | `created` (may be `createdAt`) | Action 5b Map: `item()?['created']` | `/card/{id}/comment` | Confirm after first run |
+| Checklist name | `title` | Action 6b Map: `item()?['title']` | `/card/{id}/checklist` | Confirm after first run |
+| Checklist item text | `title` (on each item) | Upgrade to loop — see Action 6b | `/card/{id}/checklist` | POC: serialized via string() |
+| Checklist item state | `status` / `state` / `checked` | Upgrade to loop — see Action 6b | `/card/{id}/checklist` | Confirm field name |
 
 ---
 
@@ -319,12 +416,15 @@ After running the flow once, open the run history and inspect the outputs of Act
 Before going live, test each stage:
 
 - [ ] Trigger fires when a card is moved to Done in Trello
-- [ ] Action 1 returns 200 with card array from Placker
-- [ ] Action 2 parses without schema errors (check `effort` / `startDates` / `endDates`)
-- [ ] Action 3 returns exactly 1 card matching the moved card's title
-- [ ] Actions 5 & 6 return 200 for comments and checklists
-- [ ] Action 7 builds valid HTML (check Compose output in run history)
-- [ ] Action 8 extracts a valid SharePoint URL from the description
+- [ ] Action 1 (GET Cards in List) returns 200 with card array from Placker
+- [ ] Action 2 (Parse JSON) parses without schema errors (check `effort` / `startDates` / `endDates`)
+- [ ] Action 3 (Filter Array) returns exactly 1 card matching the moved card's title
+- [ ] Action 5 (GET Comments) returns 200 — expand output in Run History to confirm field names
+- [ ] Action 6 (GET Checklists) returns 200 — expand output in Run History to confirm field names
+- [ ] Action 5b (Select - Format Comments) output is an array of HTML strings, not objects — if it returns objects, the field names in the Map expression are wrong
+- [ ] Action 6b (Select - Format Checklists) output is an array of HTML strings with checklist titles visible
+- [ ] Action 7 (Compose) builds valid HTML — open the Outputs tab in Run History and copy the value into a browser to preview it
+- [ ] Action 8 extracts a valid SharePoint URL from the description (no `%20` encoding issues)
 - [ ] Action 9 creates the HTML file in OneDrive `/Temp`
 - [ ] Action 10 converts to PDF successfully
 - [ ] Action 11 saves PDF to correct SharePoint folder
@@ -338,6 +438,8 @@ Before going live, test each stage:
 | Parse JSON schema error on `effort` | Schema type mismatch | Use `PlackerParseJSON_Schema.json` — already has `anyOf` fix |
 | `body('HTTP')?['body']` expression error | Selecting property from array | Use `body('HTTP')` only — no `?['body']` |
 | Filter Array returns 0 results | Title case mismatch between Trello and Placker | Check exact card name in both systems |
+| Select output is array of objects, not strings | Field name in Map expression is wrong or missing | Open Run History → GET Comments output → check actual field names → update Map in Action 5b or 6b |
+| `join()` in Action 7 returns empty string | Select output is empty — GET returned no results | Check that the card actually has comments / checklists (`hasComments`/`hasChecklists` flags in GET Cards output) |
 | Convert file fails | OneDrive `/Temp` folder missing | Create the folder manually in OneDrive |
 | SharePoint Create file fails | Folder path has URL-encoded characters | Decode `%20` to spaces in the folder path |
 
