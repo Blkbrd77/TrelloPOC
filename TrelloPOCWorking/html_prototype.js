@@ -117,7 +117,7 @@ function inspectFields(label, data, expectedFields) {
   console.log(`  Actual top-level fields: ${actual.join(', ')}`);
   for (const f of expectedFields) {
     const found = getNestedValue(first, f) !== undefined;
-    console.log(`  ${found ? '✓' : '✗ MISSING'} ${f}${found ? ` = ${JSON.stringify(getNestedValue(first, f))}` : ' — UPDATE FIELD NAME IN EXPRESSIONS'}`);
+    console.log(`  ${found ? '[OK]' : '[MISSING]'} ${f}${found ? ` = ${JSON.stringify(getNestedValue(first, f))}` : ' -- UPDATE FIELD NAME IN EXPRESSIONS'}`);
   }
 }
 
@@ -149,7 +149,7 @@ function buildHtml(card, comments, checklists) {
   const checklistsHtml = checklists.map((cl) => {
     const itemsHtml = (cl?.items ?? []).map((item) => {
       const done = item?.status === 'complete' || item?.checked === true || item?.state === 'complete';
-      return `<p>${done ? '✓' : '☐'} ${item?.title ?? item?.name ?? ''}</p>`;
+      return `<p>${done ? '&#10003;' : '&#9744;'} ${item?.title ?? item?.name ?? ''}</p>`;
     }).join('');
     return `<h3>${cl?.title ?? cl?.name ?? ''}</h3>${itemsHtml}`;
   }).join('');
