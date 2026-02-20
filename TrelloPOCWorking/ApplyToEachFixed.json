@@ -1,0 +1,62 @@
+{
+  "_errors_and_fixes": [
+    {
+      "bug": 1,
+      "location": "Append_to_string_variable → inputs.value (outer loop)",
+      "problem": "Value is a plain string — the @ prefix is missing. Power Automate does not evaluate expressions without @. It appended the literal text \"concat('<h3>'...)\" into the variable instead of the result.",
+      "original":  "concat('<h3>', items('Apply_to_each')?['title'], '</h3>')",
+      "fixed":    "@concat('<h3>', items('Apply_to_each')?['title'], '</h3>')"
+    },
+    {
+      "bug": 2,
+      "location": "Apply_to_each_1 → foreach",
+      "problem": "Iterating over @items('Apply_to_each') targets the checklist object itself — a single object, not an array. Power Automate either errors or iterates over the object's properties. The inner loop needs to target the 'items' array inside each checklist object.",
+      "original":  "@items('Apply_to_each')",
+      "fixed":    "@items('Apply_to_each')?['items']"
+    },
+    {
+      "bug": 3,
+      "location": "Append_to_string_variable_1 → inputs.value (inner loop)",
+      "problem": "Two problems: (a) same missing @ prefix as Bug 1. (b) references items('Apply_to_each_2') which does not exist — the inner loop action is named Apply_to_each_1, so the current item inside it is items('Apply_to_each_1'), not items('Apply_to_each_2').",
+      "original":  "concat('<p>', if(equals(items('Apply_to_each_2')?['status'], 'complete'), '&#10003;', '&#9744;'), ' ', items('Apply_to_each_2')?['title'], '</p>')",
+      "fixed":    "@concat('<p>', if(equals(items('Apply_to_each_1')?['status'], 'complete'), '&#10003;', '&#9744;'), ' ', items('Apply_to_each_1')?['title'], '</p>')"
+    }
+  ],
+
+  "_rule": "In Power Automate, items('ActionName') always uses the name of the foreach action that contains the step you are writing. Outer loop = items('Apply_to_each'). Inner loop = items('Apply_to_each_1'). If you rename either loop, every items() reference inside it must match the new name.",
+
+  "type": "Foreach",
+  "foreach": "@body('Get_Checklist')",
+  "actions": {
+    "Append_to_string_variable": {
+      "type": "AppendToStringVariable",
+      "inputs": {
+        "name": "varChecklistsHTML",
+        "value": "@concat('<h3>', items('Apply_to_each')?['title'], '</h3>')"
+      }
+    },
+    "Apply_to_each_1": {
+      "type": "Foreach",
+      "foreach": "@items('Apply_to_each')?['items']",
+      "actions": {
+        "Append_to_string_variable_1": {
+          "type": "AppendToStringVariable",
+          "inputs": {
+            "name": "varChecklistsHTML",
+            "value": "@concat('<p>', if(equals(items('Apply_to_each_1')?['status'], 'complete'), '&#10003;', '&#9744;'), ' ', items('Apply_to_each_1')?['title'], '</p>')"
+          }
+        }
+      },
+      "runAfter": {
+        "Append_to_string_variable": [
+          "Succeeded"
+        ]
+      }
+    }
+  },
+  "runAfter": {
+    "Format_Checklists": [
+      "Succeeded"
+    ]
+  }
+}
