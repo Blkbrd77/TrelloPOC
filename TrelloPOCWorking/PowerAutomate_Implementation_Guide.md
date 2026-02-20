@@ -7,6 +7,27 @@
 
 ---
 
+## Quick Start — Import the Flow Definition
+
+Instead of clicking through every step manually, paste `PowerAutomate_Flow_Definition.json` directly into Power Automate's code view. This creates all 11 actions at once.
+
+### Steps
+
+1. In Power Automate, click **+ New flow** > **Automated cloud flow**.
+2. Give the flow a name, skip the trigger picker, click **Create**.
+3. In the flow editor, click **...** (top-right) > **Code View**.
+4. Select all existing content and replace it with the full `definition` block from `PowerAutomate_Flow_Definition.json`.
+5. Click **Save**. Power Automate will build all actions.
+6. Each connector step (Trello, OneDrive, SharePoint) will show a banner — click **Sign in** on each to attach your account.
+7. On the Trello trigger, open the action and set **Board** and **List** (Done) from the dropdowns — this replaces the `REPLACE_WITH_TRELLO_BOARD_ID` and `REPLACE_WITH_TRELLO_DONE_LIST_ID` placeholders.
+8. In the two HTTP actions and the parallel HTTP action, replace `REPLACE_WITH_PLACKER_API_KEY` and `REPLACE_WITH_PLACKER_DONE_LIST_ID` with your real values.
+
+> **Tip:** Search the code view JSON for every `REPLACE_WITH_` string to find all tokens that need substitution. They are also listed in the `_tokens` object at the top of `PowerAutomate_Flow_Definition.json`.
+
+After these steps, proceed to **Testing Checklist** at the bottom of this guide.
+
+---
+
 ## Overview
 
 When a Trello card is moved to the **Done** list, this flow:
@@ -326,6 +347,7 @@ Before going live, test each stage:
 
 | File | Purpose |
 |---|---|
+| `PowerAutomate_Flow_Definition.json` | **Importable flow definition** — paste into Power Automate code view to create all 11 actions at once |
 | `PlackerParseJSON_Schema.json` | Corrected JSON schema for the Parse JSON action |
 | `PlackerOutput` | Sample Placker API response used to build and test the schema |
 | `Placker_API_Tests.postman_collection.json` | Postman collection to validate API endpoints |

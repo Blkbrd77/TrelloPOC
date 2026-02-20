@@ -1,0 +1,310 @@
+{
+  "_comment": "Power Automate Flow Definition — Trello Done → Placker Enrichment → SharePoint PDF",
+  "_instructions": [
+    "HOW TO USE THIS FILE:",
+    "1. In Power Automate, click '+ New flow' > 'Automated cloud flow' > name it, skip the trigger picker, click 'Create'.",
+    "2. In the flow editor, click the '...' menu (top-right) > 'Code View' (or 'Edit in advanced mode').",
+    "3. Paste the entire contents of the 'definition' block below into the code view editor.",
+    "4. Click Save. Power Automate will create all 11 actions. Then configure the 3 connections (Trello, OneDrive, SharePoint) by clicking each flagged step.",
+    "5. Search for every REPLACE_WITH_ token (listed in _tokens below) and substitute your real values.",
+    "",
+    "ALTERNATIVELY — build manually using PowerAutomate_Implementation_Guide.md and use this file as a reference."
+  ],
+  "_tokens": {
+    "REPLACE_WITH_TRELLO_BOARD_ID": "Your Trello board ID (visible in the board URL: trello.com/b/BOARD_ID/...)",
+    "REPLACE_WITH_TRELLO_DONE_LIST_ID": "Your Trello 'Done' list ID (visible in list URL or via Trello API)",
+    "REPLACE_WITH_PLACKER_DONE_LIST_ID": "Placker list ID for the Done list — run Postman Request 3 from Placker_API_Tests.postman_collection.json",
+    "REPLACE_WITH_PLACKER_API_KEY": "Your Placker API key from Placker Profile > Settings > API",
+    "REPLACE_WITH_TRELLO_CONNECTION_ID": "Auto-filled by Power Automate when you connect your Trello account",
+    "REPLACE_WITH_ONEDRIVE_CONNECTION_ID": "Auto-filled by Power Automate when you connect OneDrive for Business",
+    "REPLACE_WITH_SHAREPOINT_CONNECTION_ID": "Auto-filled by Power Automate when you connect SharePoint"
+  },
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      }
+    },
+    "triggers": {
+      "When_a_card_is_added_to_a_list": {
+        "recurrence": {
+          "frequency": "Minute",
+          "interval": 1
+        },
+        "splitOn": "@triggerBody()",
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['trello']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/trigger/boards/@{encodeURIComponent('REPLACE_WITH_TRELLO_BOARD_ID')}/lists/@{encodeURIComponent('REPLACE_WITH_TRELLO_DONE_LIST_ID')}/cards"
+        },
+        "metadata": {
+          "operationMetadataId": "trigger-trello-card-added-to-list"
+        }
+      }
+    },
+    "actions": {
+      "HTTP_-_Get_all_cards_in_Done_list": {
+        "_comment": "ACTION 1 — Calls Placker to get all cards currently in the Done list.",
+        "runAfter": {},
+        "type": "Http",
+        "inputs": {
+          "method": "GET",
+          "uri": "https://placker.com/list/REPLACE_WITH_PLACKER_DONE_LIST_ID/card",
+          "headers": {
+            "X-API-Key": "REPLACE_WITH_PLACKER_API_KEY"
+          }
+        }
+      },
+      "Parse_JSON": {
+        "_comment": "ACTION 2 — Parses the Placker card array. Schema includes anyOf fix for the 'effort' field (can be [] or {planned: int}). Do not use body('HTTP')?['body'] — use body('HTTP') only.",
+        "runAfter": {
+          "HTTP_-_Get_all_cards_in_Done_list": [
+            "Succeeded"
+          ]
+        },
+        "type": "ParseJson",
+        "inputs": {
+          "content": "@body('HTTP_-_Get_all_cards_in_Done_list')",
+          "schema": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "list": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "integer" },
+                    "title": { "type": "string" },
+                    "slug": { "type": "string" }
+                  }
+                },
+                "board": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "integer" },
+                    "title": { "type": "string" }
+                  }
+                },
+                "effort": {
+                  "anyOf": [
+                    { "type": "array" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "planned": { "type": "integer" }
+                      }
+                    }
+                  ]
+                },
+                "startDates": {
+                  "type": "object",
+                  "properties": {
+                    "actual": { "type": "string" },
+                    "planned": { "type": "string" }
+                  }
+                },
+                "endDates": {
+                  "type": "object",
+                  "properties": {
+                    "actual": { "type": "string" },
+                    "planned": { "type": "string" }
+                  }
+                },
+                "storyPoints": { "type": "array" },
+                "budget": { "type": "array" },
+                "id": { "type": "integer" },
+                "title": { "type": "string" },
+                "status": { "type": "string" },
+                "progress": { "type": "number" },
+                "description": { "type": "string" },
+                "externalFields": { "type": "array" },
+                "order": { "type": "integer" },
+                "archived": { "type": "boolean" },
+                "attributes": { "type": "array" },
+                "hasComments": { "type": "boolean" },
+                "hasChecklists": { "type": "boolean" },
+                "url": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "Filter_array": {
+        "_comment": "ACTION 3 — Filters the Placker card array to find the card whose title matches the Trello card that triggered the flow.",
+        "runAfter": {
+          "Parse_JSON": [
+            "Succeeded"
+          ]
+        },
+        "type": "Query",
+        "inputs": {
+          "from": "@body('Parse_JSON')",
+          "where": "@equals(item()?['title'], triggerBody()?['name'])"
+        }
+      },
+      "Compose_-_Extract_Placker_Card_ID": {
+        "_comment": "ACTION 4 — Stores the integer Placker card ID from the first (only) match. Used in Actions 5 & 6.",
+        "runAfter": {
+          "Filter_array": [
+            "Succeeded"
+          ]
+        },
+        "type": "Compose",
+        "inputs": "@first(body('Filter_array'))?['id']"
+      },
+      "HTTP_-_Get_Comments": {
+        "_comment": "ACTION 5 — Fetches comments for the matched Placker card. Runs in parallel with Action 6. After first test run, inspect this output and update the HTML template in Action 7 with real field names (e.g., item()?['text'], item()?['author']?['name'], item()?['createdAt']).",
+        "runAfter": {
+          "Compose_-_Extract_Placker_Card_ID": [
+            "Succeeded"
+          ]
+        },
+        "type": "Http",
+        "inputs": {
+          "method": "GET",
+          "uri": "@concat('https://placker.com/card/', outputs('Compose_-_Extract_Placker_Card_ID'), '/comment')",
+          "headers": {
+            "X-API-Key": "REPLACE_WITH_PLACKER_API_KEY"
+          }
+        }
+      },
+      "HTTP_-_Get_Checklists": {
+        "_comment": "ACTION 6 — Fetches checklists for the matched Placker card. Runs in parallel with Action 5. To make this truly parallel in the UI: after saving this flow, open Action 6, click '...' > 'Configure run after', and also set it to run after 'Compose_-_Extract_Placker_Card_ID'. Power Automate will then run Actions 5 and 6 simultaneously.",
+        "runAfter": {
+          "Compose_-_Extract_Placker_Card_ID": [
+            "Succeeded"
+          ]
+        },
+        "type": "Http",
+        "inputs": {
+          "method": "GET",
+          "uri": "@concat('https://placker.com/card/', outputs('Compose_-_Extract_Placker_Card_ID'), '/checklist')",
+          "headers": {
+            "X-API-Key": "REPLACE_WITH_PLACKER_API_KEY"
+          }
+        }
+      },
+      "Compose_-_Build_HTML_Content": {
+        "_comment": "ACTION 7 — Assembles HTML for the PDF. Comments and checklists are currently stringified (string()). After the first test run, replace string(body('HTTP_-_Get_Comments')) and string(body('HTTP_-_Get_Checklists')) with properly formatted loops or field references once you see the actual response shapes.",
+        "runAfter": {
+          "HTTP_-_Get_Comments": [
+            "Succeeded"
+          ],
+          "HTTP_-_Get_Checklists": [
+            "Succeeded"
+          ]
+        },
+        "type": "Compose",
+        "inputs": "@concat('<html><body>','<h1>',first(body('Filter_array'))?['title'],'</h1>','<hr/>','<p><strong>Status:</strong> ',first(body('Filter_array'))?['status'],'</p>','<p><strong>Completed:</strong> ',first(body('Filter_array'))?['endDates']?['actual'],'</p>','<h2>Description</h2>','<p>',first(body('Filter_array'))?['description'],'</p>','<h2>Comments</h2>','<p>',string(body('HTTP_-_Get_Comments')),'</p>','<h2>Checklists</h2>','<p>',string(body('HTTP_-_Get_Checklists')),'</p>','</body></html>')"
+      },
+      "Compose_-_Extract_SharePoint_URL": {
+        "_comment": "ACTION 8 — Extracts the SharePoint URL from the Placker card description. The description contains a markdown link in the format [Link Text](URL \"‌\"). This expression grabs everything between ]( and the space before the closing title quote.",
+        "runAfter": {
+          "Compose_-_Build_HTML_Content": [
+            "Succeeded"
+          ]
+        },
+        "type": "Compose",
+        "inputs": "@substring(first(body('Filter_array'))?['description'], add(indexOf(first(body('Filter_array'))?['description'], ']('), 2), sub(indexOf(first(body('Filter_array'))?['description'], ' \"'), add(indexOf(first(body('Filter_array'))?['description'], ']('), 2)))"
+      },
+      "OneDrive_-_Create_HTML_File": {
+        "_comment": "ACTION 9 — Creates a temporary HTML file in OneDrive /Temp. Create the /Temp folder in OneDrive manually before running. The file is only used as an intermediate step for PDF conversion.",
+        "runAfter": {
+          "Compose_-_Extract_SharePoint_URL": [
+            "Succeeded"
+          ]
+        },
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['onedriveforbusiness']['connectionId']"
+            }
+          },
+          "method": "post",
+          "path": "/datasets/default/files",
+          "queries": {
+            "folderPath": "/Temp",
+            "name": "@concat(first(body('Filter_array'))?['title'], '.html')",
+            "queryParametersSingleEncoded": true
+          },
+          "body": "@outputs('Compose_-_Build_HTML_Content')"
+        }
+      },
+      "OneDrive_-_Convert_to_PDF": {
+        "_comment": "ACTION 10 — Converts the HTML file to PDF using the OneDrive convert endpoint. Uses the file Id returned by Action 9.",
+        "runAfter": {
+          "OneDrive_-_Create_HTML_File": [
+            "Succeeded"
+          ]
+        },
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['onedriveforbusiness']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/datasets/default/files/@{encodeURIComponent(encodeURIComponent(body('OneDrive_-_Create_HTML_File')?['Id']))}/convert",
+          "queries": {
+            "type": "PDF"
+          }
+        }
+      },
+      "SharePoint_-_Save_PDF": {
+        "_comment": "ACTION 11 — Saves the PDF to the SharePoint customer folder. Folder path is hardcoded as fallback. To use the dynamic URL from Action 8 instead: replace the folderPath query value with outputs('Compose_-_Extract_SharePoint_URL') once you confirm URL extraction works correctly. Decode any %20 to spaces if the path contains URL-encoded characters.",
+        "runAfter": {
+          "OneDrive_-_Convert_to_PDF": [
+            "Succeeded"
+          ]
+        },
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+            }
+          },
+          "method": "post",
+          "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://hosemccann1.sharepoint.com/sites/HMCJOBS'))}/files",
+          "queries": {
+            "folderPath": "/Shared Documents/FRC-ITAR/68+/Engineering/COED Word and Access Files",
+            "name": "@concat(first(body('Filter_array'))?['title'], '.pdf')"
+          },
+          "body": "@body('OneDrive_-_Convert_to_PDF')"
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "parameters": {
+    "$connections": {
+      "value": {
+        "trello": {
+          "connectionId": "/providers/Microsoft.PowerApps/apis/shared_trello/connections/REPLACE_WITH_TRELLO_CONNECTION_ID",
+          "connectionName": "shared_trello",
+          "id": "/providers/Microsoft.PowerApps/apis/shared_trello"
+        },
+        "onedriveforbusiness": {
+          "connectionId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness/connections/REPLACE_WITH_ONEDRIVE_CONNECTION_ID",
+          "connectionName": "shared_onedriveforbusiness",
+          "id": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness"
+        },
+        "sharepointonline": {
+          "connectionId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/connections/REPLACE_WITH_SHAREPOINT_CONNECTION_ID",
+          "connectionName": "shared_sharepointonline",
+          "id": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+        }
+      }
+    }
+  }
+}
